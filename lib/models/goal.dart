@@ -8,6 +8,8 @@ class Goal {
   final String emoji;
   final int colorValue;
   final DateTime? deadline;
+  // Montant que l'utilisateur prévoit d'épargner chaque mois vers cet objectif
+  final double monthlyContribution;
 
   Goal({
     required this.id,
@@ -17,11 +19,26 @@ class Goal {
     required this.emoji,
     required this.colorValue,
     this.deadline,
+    this.monthlyContribution = 0,
   });
 
   double get progress => targetAmount > 0 ? (savedAmount / targetAmount).clamp(0.0, 1.0) : 0.0;
   double get remaining => (targetAmount - savedAmount).clamp(0.0, targetAmount);
   bool get isCompleted => savedAmount >= targetAmount;
+
+  // Nombre de mois restants selon la contribution mensuelle
+  int? get estimatedMonthsRemaining {
+    if (monthlyContribution <= 0 || remaining <= 0) return null;
+    return (remaining / monthlyContribution).ceil();
+  }
+
+  // Date estimée d'atteinte de l'objectif
+  DateTime? get estimatedCompletionDate {
+    final months = estimatedMonthsRemaining;
+    if (months == null) return null;
+    final now = DateTime.now();
+    return DateTime(now.year, now.month + months, now.day);
+  }
 
   Map<String, dynamic> toMap() {
     return {
@@ -32,6 +49,7 @@ class Goal {
       'emoji': emoji,
       'colorValue': colorValue,
       'deadline': deadline?.toIso8601String(),
+      'monthlyContribution': monthlyContribution,
     };
   }
 
@@ -44,6 +62,7 @@ class Goal {
       emoji: map['emoji'] ?? '🎯',
       colorValue: map['colorValue'] ?? 0xFF5B4FFF,
       deadline: map['deadline'] != null ? DateTime.parse(map['deadline']) : null,
+      monthlyContribution: (map['monthlyContribution'] as num?)?.toDouble() ?? 0,
     );
   }
 
@@ -58,6 +77,7 @@ class Goal {
     String? emoji,
     int? colorValue,
     DateTime? deadline,
+    double? monthlyContribution,
   }) {
     return Goal(
       id: id ?? this.id,
@@ -67,6 +87,7 @@ class Goal {
       emoji: emoji ?? this.emoji,
       colorValue: colorValue ?? this.colorValue,
       deadline: deadline ?? this.deadline,
+      monthlyContribution: monthlyContribution ?? this.monthlyContribution,
     );
   }
 }

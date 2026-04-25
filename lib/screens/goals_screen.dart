@@ -212,6 +212,7 @@ class _AddGoalSheetState extends State<_AddGoalSheet> {
   final _titleCtrl = TextEditingController();
   final _targetCtrl = TextEditingController();
   final _savedCtrl = TextEditingController();
+  final _monthlyCtrl = TextEditingController();
   String _emoji = '🎯';
   int _colorValue = 0xFF5B4FFF;
 
@@ -229,7 +230,70 @@ class _AddGoalSheetState extends State<_AddGoalSheet> {
     _titleCtrl.dispose();
     _targetCtrl.dispose();
     _savedCtrl.dispose();
+    _monthlyCtrl.dispose();
     super.dispose();
+  }
+
+  Widget _buildEstimatePreview() {
+    final target = double.tryParse(_targetCtrl.text) ?? 0;
+    final saved = double.tryParse(_savedCtrl.text) ?? 0;
+    final monthly = double.tryParse(_monthlyCtrl.text) ?? 0;
+    final remaining = (target - saved).clamp(0.0, target);
+
+    if (target <= 0 || monthly <= 0 || remaining <= 0) {
+      return const SizedBox.shrink();
+    }
+
+    final months = (remaining / monthly).ceil();
+    final completionDate = DateTime(
+      DateTime.now().year,
+      DateTime.now().month + months,
+      DateTime.now().day,
+    );
+    final dateStr = '${completionDate.day}/${completionDate.month}/${completionDate.year}';
+
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Color(_colorValue).withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Color(_colorValue).withOpacity(0.25)),
+      ),
+      child: Row(
+        children: [
+          Text('📅', style: const TextStyle(fontSize: 18)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: TextStyle(
+                    color: Colors.grey.shade700, fontSize: 12),
+                children: [
+                  const TextSpan(text: 'À '),
+                  TextSpan(
+                    text:
+                        '${NumberFormat('#,###', 'fr_FR').format(monthly)} $kCurrency/mois',
+                    style: TextStyle(
+                        color: Color(_colorValue),
+                        fontWeight: FontWeight.w700),
+                  ),
+                  TextSpan(
+                      text: ', objectif atteint en '),
+                  TextSpan(
+                    text: '$months mois',
+                    style: TextStyle(
+                        color: Color(_colorValue),
+                        fontWeight: FontWeight.w700),
+                  ),
+                  TextSpan(text: ' (vers le $dateStr).'),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -367,12 +431,26 @@ class _AddGoalSheetState extends State<_AddGoalSheet> {
                 controller: _savedCtrl,
                 keyboardType: const TextInputType.numberWithOptions(
                     decimal: true),
+                onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
                   labelText: 'Déjà épargné ($kCurrency)',
                   prefixIcon:
                       const Icon(Icons.savings_rounded, size: 20),
                 ),
               ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _monthlyCtrl,
+                keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true),
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  labelText: 'Contribution mensuelle ($kCurrency)',
+                  prefixIcon: const Icon(Icons.calendar_month_rounded, size: 20),
+                  helperText: 'Montant que vous mettez de côté chaque mois',
+                ),
+              ),
+              _buildEstimatePreview(),
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
@@ -390,6 +468,8 @@ class _AddGoalSheetState extends State<_AddGoalSheet> {
                           double.tryParse(_savedCtrl.text) ?? 0,
                       emoji: _emoji,
                       colorValue: _colorValue,
+                      monthlyContribution:
+                          double.tryParse(_monthlyCtrl.text) ?? 0,
                     );
                     context.read<GoalProvider>().addGoal(goal);
                     Navigator.pop(context);
@@ -431,14 +511,18 @@ class _GoalDetailSheetState extends State<_GoalDetailSheet> {
   bool _isEditing = false;
   late final TextEditingController _titleEditCtrl;
   late final TextEditingController _targetEditCtrl;
+  late final TextEditingController _monthlyEditCtrl;
 
   @override
   void initState() {
     super.initState();
-    _titleEditCtrl =
-        TextEditingController(text: widget.goal.title);
+    _titleEditCtrl = TextEditingController(text: widget.goal.title);
     _targetEditCtrl = TextEditingController(
         text: widget.goal.targetAmount.toInt().toString());
+    _monthlyEditCtrl = TextEditingController(
+        text: widget.goal.monthlyContribution > 0
+            ? widget.goal.monthlyContribution.toInt().toString()
+            : '');
   }
 
   @override
@@ -446,6 +530,7 @@ class _GoalDetailSheetState extends State<_GoalDetailSheet> {
     _amountCtrl.dispose();
     _titleEditCtrl.dispose();
     _targetEditCtrl.dispose();
+    _monthlyEditCtrl.dispose();
     super.dispose();
   }
 
@@ -513,6 +598,19 @@ class _GoalDetailSheetState extends State<_GoalDetailSheet> {
                     labelText: 'Montant cible ($kCurrency)',
                   ),
                 ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _monthlyEditCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true),
+                  decoration: InputDecoration(
+                    labelText: 'Contribution mensuelle ($kCurrency)',
+                    prefixIcon:
+                        const Icon(Icons.calendar_month_rounded, size: 20),
+                    helperText:
+                        'Combien vous mettez de côté par mois pour cet objectif',
+                  ),
+                ),
                 const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,
@@ -523,6 +621,9 @@ class _GoalDetailSheetState extends State<_GoalDetailSheet> {
                         targetAmount: double.tryParse(
                                 _targetEditCtrl.text) ??
                             goal.targetAmount,
+                        monthlyContribution: double.tryParse(
+                                _monthlyEditCtrl.text) ??
+                            goal.monthlyContribution,
                       );
                       context
                           .read<GoalProvider>()
@@ -639,8 +740,9 @@ class _GoalDetailSheetState extends State<_GoalDetailSheet> {
   }
 
   Widget _buildSimulation(Goal goal) {
-    if (goal.savedAmount <= 0) return const SizedBox.shrink();
+    final goalColor = Color(goal.colorValue);
     final remaining = goal.remaining;
+
     if (remaining <= 0) {
       return Container(
         margin: const EdgeInsets.only(top: 8),
@@ -657,8 +759,31 @@ class _GoalDetailSheetState extends State<_GoalDetailSheet> {
             Text(
               'Objectif atteint ! Félicitations !',
               style: TextStyle(
-                color: Color(0xFF34C759),
-                fontWeight: FontWeight.w600,
+                  color: Color(0xFF34C759), fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Pas de contribution mensuelle définie
+    if (goal.monthlyContribution <= 0) {
+      return Container(
+        margin: const EdgeInsets.only(top: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Row(
+          children: [
+            const Text('💡', style: TextStyle(fontSize: 18)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Définissez une contribution mensuelle pour voir quand vous atteindrez cet objectif.',
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
               ),
             ),
           ],
@@ -666,26 +791,67 @@ class _GoalDetailSheetState extends State<_GoalDetailSheet> {
       );
     }
 
-    final monthlyRate = goal.savedAmount > 0 ? goal.savedAmount : 10000;
-    final monthsToGo = (remaining / monthlyRate).ceil();
+    final months = goal.estimatedMonthsRemaining!;
+    final completionDate = goal.estimatedCompletionDate!;
+    final dateStr =
+        '${completionDate.day}/${completionDate.month}/${completionDate.year}';
 
     return Container(
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF5B4FFF).withOpacity(0.07),
+        color: goalColor.withOpacity(0.07),
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: goalColor.withOpacity(0.2)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('📅', style: TextStyle(fontSize: 18)),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'À ce rythme, vous atteignez votre objectif dans ~$monthsToGo mois',
-              style: TextStyle(
-                  color: Colors.grey.shade600, fontSize: 12),
+          Row(
+            children: [
+              const Text('📅', style: TextStyle(fontSize: 18)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: RichText(
+                  text: TextSpan(
+                    style:
+                        TextStyle(color: Colors.grey.shade700, fontSize: 12),
+                    children: [
+                      const TextSpan(text: 'À '),
+                      TextSpan(
+                        text:
+                            '${NumberFormat('#,###', 'fr_FR').format(goal.monthlyContribution)} $kCurrency/mois',
+                        style: TextStyle(
+                            color: goalColor, fontWeight: FontWeight.w700),
+                      ),
+                      const TextSpan(text: ', objectif atteint en '),
+                      TextSpan(
+                        text: '$months mois',
+                        style: TextStyle(
+                            color: goalColor, fontWeight: FontWeight.w700),
+                      ),
+                      TextSpan(text: ' (vers le $dateStr).'),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: goal.progress,
+              minHeight: 4,
+              backgroundColor: goalColor.withOpacity(0.1),
+              valueColor: AlwaysStoppedAnimation(goalColor),
             ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Restant : ${NumberFormat('#,###', 'fr_FR').format(remaining)} $kCurrency',
+            style:
+                TextStyle(color: Colors.grey.shade500, fontSize: 11),
           ),
         ],
       ),
