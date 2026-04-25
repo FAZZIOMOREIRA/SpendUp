@@ -57,9 +57,14 @@ class BudgetProvider extends ChangeNotifier {
     if (saved != null) {
       _budget = saved;
     } else {
+      final double safeIncome = monthlyIncome > 0 ? monthlyIncome : 500000.0;
+      // Le budget ne peut pas dépasser les revenus
+      final safeLimit = monthlyLimit > 0
+          ? monthlyLimit.clamp(0.0, safeIncome).toDouble()
+          : safeIncome * 0.7;
       _budget = Budget(
-        monthlyIncome: monthlyIncome > 0 ? monthlyIncome : 500000,
-        monthlyLimit: monthlyLimit > 0 ? monthlyLimit : monthlyIncome * 0.7,
+        monthlyIncome: safeIncome,
+        monthlyLimit: safeLimit,
       );
       await _storage.saveBudget(_budget);
     }

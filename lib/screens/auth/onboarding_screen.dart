@@ -319,6 +319,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Widget _buildStep2() {
+    final income = double.tryParse(_incomeCtrl.text.replaceAll(' ', '')) ?? 0;
+    final budget = double.tryParse(_expensesCtrl.text.replaceAll(' ', '')) ?? 0;
+    final budgetExceedsIncome = income > 0 && budget > income;
+    final budgetPct = income > 0 && budget > 0
+        ? ((budget / income) * 100).toStringAsFixed(0)
+        : null;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -327,39 +334,97 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           const Text('💳', style: TextStyle(fontSize: 48)),
           const SizedBox(height: 12),
           Text(
-            'Vos habitudes financières',
+            'Vos finances',
             style: GoogleFonts.poppins(
                 fontSize: 22, fontWeight: FontWeight.w700),
           ),
           Text(
-            'Ces données resteront privées et serviront à configurer votre budget.',
+            'Définissez vos revenus et le plafond de dépenses que vous vous fixez.',
             style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
           ),
           const SizedBox(height: 28),
           TextFormField(
             controller: _incomeCtrl,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            onChanged: (_) => setState(() {}),
             decoration: InputDecoration(
               labelText: 'Revenu mensuel ($kCurrency)',
-              prefixIcon:
-                  const Icon(Icons.attach_money_rounded, size: 20),
-              helperText: 'Salaire, revenus d\'activité, etc.',
+              prefixIcon: const Icon(Icons.attach_money_rounded, size: 20),
+              helperText: 'Salaire, freelance, pension, etc.',
             ),
           ),
           const SizedBox(height: 20),
           TextFormField(
             controller: _expensesCtrl,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            onChanged: (_) => setState(() {}),
             decoration: InputDecoration(
-              labelText: 'Dépenses mensuelles estimées ($kCurrency)',
-              prefixIcon:
-                  const Icon(Icons.shopping_cart_outlined, size: 20),
-              helperText: 'Montant moyen que vous dépensez chaque mois',
+              labelText: 'Budget mensuel maximum ($kCurrency)',
+              prefixIcon: const Icon(Icons.account_balance_wallet_outlined, size: 20),
+              helperText: 'Plafond de dépenses que vous souhaitez ne pas dépasser',
+              suffixText: budgetPct != null ? '$budgetPct% des revenus' : null,
+              suffixStyle: TextStyle(
+                color: budgetExceedsIncome
+                    ? const Color(0xFFFF3B5C)
+                    : const Color(0xFF00C6AE),
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+              ),
             ),
           ),
-          const SizedBox(height: 24),
+          if (budgetExceedsIncome) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF3B5C).withOpacity(0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: const Color(0xFFFF3B5C).withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Text('⚠️', style: TextStyle(fontSize: 18)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Votre budget dépasse vos revenus. Pour éviter un déficit, fixez un budget ≤ ${_incomeCtrl.text} $kCurrency.',
+                      style: const TextStyle(
+                          color: Color(0xFFFF3B5C), fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (!budgetExceedsIncome && income > 0 && budget > 0) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF00C6AE).withOpacity(0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: const Color(0xFF00C6AE).withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Text('✅', style: TextStyle(fontSize: 18)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Épargne potentielle : ${(income - budget).toStringAsFixed(0)} $kCurrency/mois (${(((income - budget) / income) * 100).toStringAsFixed(0)}% de vos revenus).',
+                      style: const TextStyle(
+                          color: Color(0xFF00C6AE), fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 20),
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: const Color(0xFF5B4FFF).withOpacity(0.07),
               borderRadius: BorderRadius.circular(14),
@@ -370,11 +435,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'La règle 50/30/20 recommande d\'allouer 50% aux besoins, 30% aux envies et 20% à l\'épargne.',
+                    'Règle 50/30/20 : 50% aux besoins essentiels, 30% aux loisirs, 20% à l\'épargne.',
                     style: TextStyle(
-                      color: Colors.grey.shade700,
-                      fontSize: 12,
-                    ),
+                        color: Colors.grey.shade700, fontSize: 12),
                   ),
                 ),
               ],
